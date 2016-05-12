@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<!-- Make Chrome Friendly -->
+  	<meta charset="UTF-8">
+  	<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+	<meta http-equiv="Content-Style-Type" content="text/css">
+
+  	<!-- Make Mobile friendly -->
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+	
+    <title>Twister</title>
+
+    <!-- AngularJS Library -->
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.3.13/angular.min.js"></script>
+	<script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.3.13/angular-cookies.min.js"></script>
+
+	<!-- Bootstrap Library -->
+	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.2/css/bootstrap.min.css">
+
+	<!-- Google Font -->
+	<link href='http://fonts.googleapis.com/css?family=Luckiest+Guy' rel='stylesheet' type='text/css'>
+
+	<style>
+		/*Initial color scheme*/
+		body{
+			background-color: black;
+			color: white;
+		}
+
+		/*Color schemes for different Twister Colors*/
+		body.red{
+        	background-color: red;
+        	color: white;
+        }
+
+        body.yellow{
+        	background-color: yellow;
+        	color: black;
+        }
+
+        body.blue{
+        	background-color: blue;
+        	color: white;
+        }
+
+        body.green{
+        	background-color: #00FF00;
+        	color: white;
+        }
+	
+        /*Control how the player menu should appear*/
+		#player_menu_bar_container.toggle-player-menu-open{
+			background-color: black;
+			border-bottom-right-radius:25px;
+			border-bottom-left-radius:25px;
+			border-color: white;
+			border: 1px solid;
+			border-top-width: 0px;
+			line-height: 40px;
+			color: white;
+		}
+
+		#player_menu_bar_container.toggle-player-menu-close{
+			height: 0px;
+			display: none;
+		}
+
+		/*Modify bootstrap class to add extra vertical space between buttons*/
+		.input-group-btn{
+			line-height: 20px;
+		}
+		
+		
+		/*Small and large fonts for mobile and desktop display*/
+		div.twister-font-small {
+			font-size: 600%;
+			font-family: 'Luckiest Guy', cursive;
+			line-height: 90%;
+		}
+
+		div.twister-font-large {
+			font-size: 1100%;
+			font-family: 'Luckiest Guy', cursive;
+			line-height: 90%;
+		}
+
+		/*Header image should be on right side if possible*/
+		img{
+			float: right;
+		}
+
+		/*Style for the secondsToWait between turns setting box*/
+		#secondsToWait{
+			border: white 2px solid;
+			border-radius: 25px;
+			padding: 5px 50px;
+			margin: 0px 7px;
+		}
+
+	</style>
+	<script>	
+		var TwisterWebApplication = angular.module('TwisterWebApplication', [
+		    'ngCookies'
+		]);
+
+		TwisterWebApplication.controller('TwisterController', ['$scope', '$interval', '$cookieStore',
+		    function($scope, $interval, $cookieStore) {
+
+		        $scope.playerContainers = angular.isDefined(
+		        	$cookieStore.get('playerContainers')) ? 
+		        	$cookieStore.get('playerContainers') : [];
+		        $scope.twisterColors = ["red", "blue", "yellow", "green"];
+		        $scope.twisterLimbs = ["Right Arm", "Left Arm", "Right Leg",
+		            "Left Leg"
+		        ];
+
+		        var intervalContainer;
+
+		        $scope.isResumedTwisting = false;
+		        $scope.secondsToWait = angular.isDefined($cookieStore.get(
+		                'secondsToWait')) ? $cookieStore.get('secondsToWait') :
+		            5;
+		        $scope.currentColor = "Twister";
+
+		        $scope.adjustSecondsToWaitPerTurn = function(adjust) {
+		            $scope.secondsToWait += adjust;
+		            if ($scope.secondsToWait <= 1)
+		                $scope.secondsToWait = 1;
+		            else if ($scope.secondsToWait >= 10)
+		                $scope.secondsToWait = 10;
+		            if ($scope.isResumedTwisting) {
+		                stopTwister();
+		                startTwister();
+		            }
+		            $cookieStore.put('secondsToWait', $scope.secondsToWait);
+		        }
+
+		        function startTwister() {
+		            console.log("start Twister - " + $scope.secondsToWait +
+		                " second turns");
+		            if (angular.isDefined(intervalContainer))
+		                return;
+		            doNextTwist();
+		            intervalContainer = $interval(function() {
+		                doNextTwist();
+		            }, 1000 * $scope.secondsToWait);
+		            $scope.isResumedTwisting = true;
+		        }
+
+		        function stopTwister() {
+		            console.log("stop Twister");
+		            if (angular.isDefined(intervalContainer)) {
+		                $interval.cancel(intervalContainer);
+		                intervalContainer = undefined;
+		                $scope.isResumedTwisting = false;
+		            }
+		        }
+
+		        $scope.playPauseTwisterGame = function() {
+		            console.log("Clicked Play/Pause button!");
+		            if ($scope.isResumedTwisting)
+		                stopTwister();
+		            else {
+		                startTwister();
+		                $scope.toggle_open = true;
+		            }
+		        }
+
+		        function doNextTwist() {
+		            var futurePlayerIndex = randomInt($scope.playerContainers
+		                .length);
+		            if ($scope.playerContainers.length > 2) {
+		                while ($scope.currentPlayer === $scope.playerContainers[
+		                    futurePlayerIndex]) {
+		                    futurePlayerIndex = randomInt($scope.playerContainers
+		                        .length);
+		                }
+		            }
+		            $scope.currentPlayer = $scope.playerContainers[
+		                futurePlayerIndex];
+
+		            var futureLimb;
+		            do {
+		                futureLimb = $scope.twisterLimbs[randomInt($scope.twisterLimbs
+		                    .length)];
+		            } while (futureLimb === $scope.currentLimb);
+		            $scope.currentLimb = futureLimb;
+
+		            var futureColor;
+		            do {
+		                futureColor = $scope.twisterColors[randomInt($scope
+		                    .twisterColors.length)];
+		            } while (futureColor === $scope.currentColor ||
+		                futureColor === getPlayersLimbColor($scope.playerContainers[
+		                    futurePlayerIndex], futureLimb));
+		            $scope.currentColor = futureColor;
+		            setPlayersLimbColor($scope.playerContainers[
+		                futurePlayerIndex], futureLimb, futureColor);
+
+
+		        };
+
+		        function getPlayersLimbColor(player, limb) {
+		            if (!angular.isDefined(player))
+		                return null;
+		            if (limb === "Right Arm")
+		                return player.rightArm;
+		            if (limb === "Left Arm")
+		                return player.leftArm;
+		            if (limb === "Right Leg")
+		                return player.rightLeg;
+		            if (limb === "Left Leg")
+		                return player.leftLeg;
+		            return;
+		        };
+
+		        function setPlayersLimbColor(player, limb, color) {
+		            if (!angular.isDefined(player))
+		                return;
+		            if (limb === "Right Arm")
+		                player.rightArm = color;
+		            else if (limb === "Left Arm")
+		                player.leftArm = color;
+		            else if (limb === "Right Leg")
+		                player.rightLeg = color;
+		            else if (limb === "Left Leg")
+		                player.leftLeg = color;
+		        };
+
+		        $scope.addNewPlayer = function() {
+		            console.log("new player(" + $scope.newPlayersNameInputText +
+		                ")");
+		            if (!angular.isDefined($scope.newPlayersNameInputText))
+		                return;
+		            $scope.newPlayersNameInputText = $scope.newPlayersNameInputText
+		                .trim();
+		            if ($scope.newPlayersNameInputText === "")
+		                return;
+		            var playerAlreadyExists = false;
+		            angular.forEach($scope.playerContainers, function(value,
+		                key) {
+		                if ($scope.newPlayersNameInputText ===
+		                    value)
+		                    playerAlreadyExists = true;
+		            });
+		            if (playerAlreadyExists) {
+		                $scope.newPlayersNameInputText = "";
+		                return;
+		            }
+		            var obj = {
+		                name: $scope.newPlayersNameInputText,
+		                rightArm: "",
+		                leftArm: "",
+		                rightLeg: "",
+		                leftLeg: ""
+		            }
+
+		            $scope.playerContainers.push(obj);
+		            $scope.newPlayersNameInputText = "";
+		            saveAllPlayers();
+		        };
+
+		        $scope.removeThisPlayer = function(player) {
+
+		            console.log("removeThisPlayer(" + player + ")");
+		            angular.forEach($scope.playerContainers, function(val,
+		                key) {
+		                if (val === player) {
+		                    $scope.playerContainers.splice(key, 1);
+		                }
+		            });
+		            saveAllPlayers();
+		        };
+
+		        function saveAllPlayers() {
+		            $cookieStore.put('playerContainers', $scope.playerContainers);
+		        }
+		    }
+		]);
+
+		function randomInt(maxValue) {
+		    return Math.floor((Math.random() * maxValue));
+		};
+	</script>
+</head>
+
+<body data-ng-app="TwisterWebApplication" data-ng-controller="TwisterController" data-ng-class="currentColor">
+    <div class="container text-center" id="top_container">
+		<div id="player_menu_bar_container" class="row" data-ng-class="(toggle_open)?'toggle-player-menu-close':'toggle-player-menu-open'">			
+			<span data-ng-repeat="p in playerContainers">
+				<button class="btn btn-info" data-ng-click="removeThisPlayer(p)">{{p.name}}&nbsp;
+					<span class="badge">
+						<span class="glyphicon glyphicon-remove" aria-hidden="true"></span>
+					</span>
+				</button>
+			</span>
+					
+			<form class="form-inline" data-ng-submit="addNewPlayer()">
+				<div class="form-group">	
+					<div class="input-group">	
+						<input type="text" class="form-control" id="inputPlayerName" placeholder="Player Name" data-ng-model="newPlayersNameInputText">
+						<span class="input-group-btn">
+							<button data-ng-click="addNewPlayer()" class="btn btn-default"><span class="glyphicon glyphicon-plus" aria-hidden="true"></span></button>
+						</span>
+					</div>
+				
+				</div>
+				
+				<div class="form-group">
+					<span class="hidden-xs">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
+					<button class="btn btn-default" type="button" data-ng-click="adjustSecondsToWaitPerTurn(-1)">
+						<span class="glyphicon glyphicon-minus" aria-hidden="true"></span>
+					</button>
+				
+					<button class="btn btn-default" type="button" data-ng-click="adjustSecondsToWaitPerTurn(1)">
+						<span class="glyphicon glyphicon-plus" aria-hidden="true"></span>
+					</button>
+					
+					<label>
+						<span id="secondsToWait">{{secondsToWait}} Second{{secondsToWait===1?'':'s'}}</span>
+					</label>						
+					
+					<button class="btn btn-default" type="button" data-ng-click="playPauseTwisterGame()">
+						<span data-ng-class="isResumedTwisting?'glyphicon glyphicon-pause':'glyphicon glyphicon-play'" aria-hidden="true"
+						></span>
+					</button>
+					
+				</div>
+			</form>
+		</div>
+
+		<div id="toggle_container">
+			<span class="badge" data-ng-click="toggle_open=!toggle_open"><span data-ng-class="toggle_open?'glyphicon glyphicon-chevron-down':'glyphicon glyphicon-chevron-up'" aria-hidden="true"></span></span>
+		</div>
+
+		<div id="main_container">
+			<br>
+			<div id="twister_container">
+				<div class="hidden-md hidden-lg" data-ng-class="'twister-font-small'">
+				
+					<span data-ng-hide="currentColor==='Twister'">
+					{{currentPlayer.name}}<br>
+					{{currentLimb}}<br>
+					</span>
+					<img data-ng-show="currentColor==='Twister'" src="batz_logo.png">
+					{{currentColor}}<br>
+				</div>
+				
+				<div class="hidden-xs hidden-sm" data-ng-class="'twister-font-large'">
+				
+					<span data-ng-hide="currentColor==='Twister'">
+					{{currentPlayer.name}}<br>
+					{{currentLimb}}<br>
+					</span>
+					<img data-ng-show="currentColor==='Twister'" src="batz_logo.png">
+					{{currentColor}}<br>
+				</div>
+			</div>
+
+			<span data-ng-hide="true" class="twister-font">{{ANGULAR_IS_NOT_WORKING}}</span>
+		</div>
+
+	</div>
+	
+	
+</body>
+</html>
